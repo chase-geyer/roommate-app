@@ -1,0 +1,77 @@
+
+P.when("A", "jQuery").execute(function(A, $) {
+    $("#selectQuantity [name='quantity'], #mobileQuantityDropDown").live("change", function (event) {
+      if (event.updatePromiseBadgeOnQuantityChange) {
+          return;
+      }
+
+      event.updatePromiseBadgeOnQuantityChange = 1;
+
+      // "#buybox" is included in this list because if there is no accordion row, then it is a single-offer layout
+      // possible id's may include "usedAccordionRow", "newAccordionRow_1", "newAccordionRow_2"
+      var accordionRow = $(this).closest('[id$="AccordionRow"], #buybox, [id^="newAccordionRow"]');
+
+      var quantity = $(this).val();
+      // This asin and merchantId will support use case in US marketplace.
+      // DDM will be required here to support the feature in IN marketplace
+      var asin = accordionRow.find("#deliveryBlockSelectAsin").val();
+      var merchantId = accordionRow.find("#deliveryBlockSelectMerchant").val();
+
+      if (!asin) {
+        asin = accordionRow.find("#ftSelectAsin").val();
+      }
+      if (!merchantId) {
+        merchantId = accordionRow.find("#ftSelectMerchant").val();
+      }
+
+      if (!asin || !quantity) {
+        return;
+      }
+
+      var params = [];
+      params.push("asin=" + asin);
+      params.push("quantity=" + quantity);
+      params.push("exclusiveMerchantId=" + merchantId);
+      params.push("merchantId=" + merchantId);
+      params.push("clientId=retailwebsite");
+      params.push("deviceType=web");
+      params.push("showFeatures=priceBlockMs3Mir");
+      params.push("ie=UTF8");
+      params.push("experienceId=priceBadgingQuantityRefreshAjaxExperience");
+
+      // Weblab gated addition of Locale to QuantityRefresh request
+      var addLocaleToQuantityRefreshWeblabFlag = false;
+      if (addLocaleToQuantityRefreshWeblabFlag) {
+        var locale = accordionRow.find("#deliveryBlockSelectLocale").val();
+
+        // Only add language param if locale is non-null
+        if (locale) {
+            params.push("language=" + locale);
+        }
+      }
+
+      $.ajax({
+        type: "GET",
+        url: "/gp/product/ajax?",
+        contentType: 'application/x-www-form-urlencoded;charset=utf-8',
+        data: params.join('&'),
+        accordionRow: accordionRow,
+        dataType: "html",
+        success: function (objResponse) {
+          if (objResponse != null && objResponse != "") {
+            accordionRow.find("#priceBadging_feature_div").replaceWith(objResponse);
+
+            // If it's a single buying option layout or the new buy box quantity changed, update data outside the buy box
+            if ($("#buyBoxAccordion, #buybox").children().length === 1 || accordionRow.attr("id").match(/^newAccordionRow/)) {
+              $("#price #priceblock_ourprice_row #ourprice_shippingmessage #priceBadging_feature_div").replaceWith(objResponse);
+              $("#newOfferShippingMessage_feature_div #ourPrice_availability #priceBadging_feature_div").replaceWith(objResponse);
+              $("#price #priceblock_saleprice_row #saleprice_shippingmessage #priceBadging_feature_div").replaceWith(objResponse);
+              $("#price #priceblock_dealprice_row #dealprice_shippingmessage #priceBadging_feature_div").replaceWith(objResponse);
+            }
+          }
+        }
+      });
+
+      return;
+    });
+  });
